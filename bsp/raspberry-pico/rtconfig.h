@@ -7,6 +7,8 @@
 /* RT-Thread Kernel */
 
 #define RT_NAME_MAX 8
+#define RT_USING_SMP
+#define RT_CPUS_NR 2
 #define RT_ALIGN_SIZE 8
 #define RT_THREAD_PRIORITY_32
 #define RT_THREAD_PRIORITY_MAX 32
@@ -17,6 +19,7 @@
 #define RT_USING_IDLE_HOOK
 #define RT_IDLE_HOOK_LIST_SIZE 4
 #define IDLE_THREAD_STACK_SIZE 256
+#define SYSTEM_THREAD_STACK_SIZE 256
 
 /* kservice optimization */
 
@@ -45,7 +48,7 @@
 #define RT_USING_CONSOLE
 #define RT_CONSOLEBUF_SIZE 128
 #define RT_CONSOLE_DEVICE_NAME "uart0"
-#define RT_VER_NUM 0x50000
+#define RT_VER_NUM 0x50001
 #define ARCH_ARM
 #define ARCH_ARM_CORTEX_M
 #define ARCH_ARM_CORTEX_M0
@@ -69,6 +72,9 @@
 #define MSH_USING_BUILT_IN_COMMANDS
 #define FINSH_USING_DESCRIPTION
 #define FINSH_ARG_MAX 10
+
+/* DFS: device virtual file system */
+
 
 /* Device Drivers */
 
