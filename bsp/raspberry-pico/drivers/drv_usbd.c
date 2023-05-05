@@ -533,6 +533,8 @@ void hw_endpoint_xfer_start(struct hw_endpoint *ep, uint8_t *buffer, uint16_t to
     // TODO: Is this acceptable for interrupt packets?
     TU_LOG(1, "WARN: starting new transfer on already active ep %d %s\n", tu_edpt_number(ep->ep_addr),
               ep_dir_string[tu_edpt_dir(ep->ep_addr)]);
+    hw_endpoint_lock_update(ep, -1);
+    return;
     
     hw_endpoint_reset_transfer(ep);
   } 
