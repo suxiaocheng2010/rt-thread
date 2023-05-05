@@ -71,14 +71,6 @@ const char *ep_dir_string[] = {
         "in",
 };
 
-#if TUD_OPT_RP2040_USB_DEVICE_UFRAME_FIX
-  static bool e15_is_bulkin_ep(struct hw_endpoint *ep);
-  static bool e15_is_critical_frame_period(struct hw_endpoint *ep);
-#else
-  #define e15_is_bulkin_ep(x)             (false)
-  #define e15_is_critical_frame_period(x) (false)
-#endif
-
 // if usb hardware is in host mode
 TU_ATTR_ALWAYS_INLINE static inline bool is_host_mode(void)
 {
@@ -89,6 +81,38 @@ TU_ATTR_ALWAYS_INLINE static inline struct hw_endpoint *hw_endpoint_get_by_num(u
 {
   return &hw_endpoints[num][dir];
 }
+
+#if TUD_OPT_RP2040_USB_DEVICE_UFRAME_FIX
+volatile uint32_t e15_last_sof = 0;
+
+// check if Errata 15 is needed for this endpoint i.e device bulk-in
+static bool e15_is_bulkin_ep(struct hw_endpoint *ep)
+{
+  return (!is_host_mode() && tu_edpt_dir(ep->ep_addr) == TUSB_DIR_IN &&
+          ep->transfer_type == TUSB_XFER_BULK);
+}
+
+// check if we need to apply Errata 15 workaround : i.e
+// Endpoint is BULK IN and is currently in critical frame period i.e 20% of last usb frame
+static bool e15_is_critical_frame_period(struct hw_endpoint *ep)
+{
+  TU_VERIFY(e15_is_bulkin_ep(ep));
+
+  /* Avoid the last 200us (uframe 6.5-7) of a frame, up to the EOF2 point.
+   * The device state machine cannot recover from receiving an incorrect PID
+   * when it is expecting an ACK.
+   */
+  uint32_t delta = time_us_32() - e15_last_sof;
+  if (delta < 800 || delta > 998) { 
+    return false;
+  } 
+  TU_LOG(3, "Avoiding sof %lu now %lu last %lu\n", (usb_hw->sof_rd + 1) & USB_SOF_RD_BITS, time_us_32(), e15_last_sof);
+  return true;
+}
+#else
+  #define e15_is_bulkin_ep(x)             (false)
+  #define e15_is_critical_frame_period(x) (false)
+#endif
 
 static void _hw_endpoint_alloc(struct hw_endpoint *ep, uint8_t transfer_type)
 {
@@ -519,19 +543,22 @@ void hw_endpoint_xfer_start(struct hw_endpoint *ep, uint8_t *buffer, uint16_t to
   ep->active        = true;
   ep->user_buf      = buffer;
             
-  if ( e15_is_bulkin_ep(ep) )
-  {         
-    usb_hw_set->inte = USB_INTS_DEV_SOF_BITS;
-  }         
-            
   if ( e15_is_critical_frame_period(ep) )
   {
+    pico_trace_urb("%s: [%x] pending\n", __func__, ep->ep_addr);
     ep->pending = 1;
   } else
   {
     hw_endpoint_start_next_buffer(ep);
   }
 
+  if ( e15_is_bulkin_ep(ep) )
+  {         
+    pico_trace_urb("%s: enable sof", __func__);
+    usb_hw_set->inte = USB_INTS_DEV_SOF_BITS;
+    pico_trace_urb("-> ok\n");
+  }         
+            
   hw_endpoint_lock_update(ep, -1);
 }
 
@@ -651,12 +678,14 @@ static void dcd_rp2040_irq(void)
         if ( ep->pending )
         {
           ep->pending = 0;
+          pico_trace_urb("%s: [%x] continue\n", __func__, ep->ep_addr);
           hw_endpoint_start_next_buffer(ep);
         }
 
         hw_endpoint_lock_update(ep, -1);
       }
     }
+    usb_hw_clear->inte = USB_INTS_DEV_SOF_BITS;
 #endif
 
     // disable SOF interrupt if it is used for RESUME in remote wakeup

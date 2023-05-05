@@ -10,6 +10,7 @@
 // Therefore it cannot detect disconnect event, mistaken it as suspend.
 // Note: won't work if change to 0 (for now)
 #define FORCE_VBUS_DETECT   1
+#define TUD_OPT_RP2040_USB_DEVICE_UFRAME_FIX 	1
 
 #define TU_ATTR_ALWAYS_INLINE         __attribute__ ((always_inline))
 
@@ -31,6 +32,30 @@
   #define TU_LOG_LOCATION()
   #define TU_LOG_FAILED()
 #endif 
+
+/*------------------------------------------------------------------*/
+/* Macro Generator
+ *------------------------------------------------------------------*/
+
+// Helper to implement optional parameter for TU_VERIFY Macro family
+#define _GET_3RD_ARG(arg1, arg2, arg3, ...)        arg3
+#define _GET_4TH_ARG(arg1, arg2, arg3, arg4, ...)  arg4
+
+/*------------- Generator for TU_VERIFY and TU_VERIFY_HDLR -------------*/
+#define TU_VERIFY_DEFINE(_cond, _handler, _ret)  do            \
+{                                                              \
+  if ( !(_cond) ) { _handler; return _ret;  }                  \
+} while(0)
+
+/*------------------------------------------------------------------*/
+/* TU_VERIFY
+ * - TU_VERIFY_1ARGS : return false if failed
+ * - TU_VERIFY_2ARGS : return provided value if failed
+ *------------------------------------------------------------------*/
+#define TU_VERIFY_1ARGS(_cond)                         TU_VERIFY_DEFINE(_cond, , false)
+#define TU_VERIFY_2ARGS(_cond, _ret)                   TU_VERIFY_DEFINE(_cond, , _ret)
+
+#define TU_VERIFY(...)                   _GET_3RD_ARG(__VA_ARGS__, TU_VERIFY_2ARGS, TU_VERIFY_1ARGS, UNUSED)(__VA_ARGS__)
 
 //------------- Mem -------------//
 #define tu_memclr(buffer, size)  memset((buffer), 0, (size))
