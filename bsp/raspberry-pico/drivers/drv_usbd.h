@@ -12,6 +12,8 @@
 #define FORCE_VBUS_DETECT   1
 #define TUD_OPT_RP2040_USB_DEVICE_UFRAME_FIX 	1
 
+#define FASE_IRQ 		__attribute__((noinline)) __attribute__((section(".time_critical.irq" )))
+
 #define TU_ATTR_ALWAYS_INLINE         __attribute__ ((always_inline))
 
 #define usb_hw_set hw_set_alias(usb_hw)

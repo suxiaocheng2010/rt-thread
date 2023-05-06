@@ -87,7 +87,7 @@ TU_ATTR_ALWAYS_INLINE static inline struct hw_endpoint
 volatile uint32_t e15_last_sof = 0;
 
 // check if Errata 15 is needed for this endpoint i.e device bulk-in
-static bool e15_is_bulkin_ep(struct hw_endpoint *ep)
+static bool FASE_IRQ e15_is_bulkin_ep(struct hw_endpoint *ep)
 {
 	return (!is_host_mode() && tu_edpt_dir(ep->ep_addr) == TUSB_DIR_IN &&
 		ep->transfer_type == TUSB_XFER_BULK);
@@ -95,7 +95,7 @@ static bool e15_is_bulkin_ep(struct hw_endpoint *ep)
 
 // check if we need to apply Errata 15 workaround : i.e
 // Endpoint is BULK IN and is currently in critical frame period i.e 20% of last usb frame
-static bool e15_is_critical_frame_period(struct hw_endpoint *ep)
+static bool FASE_IRQ e15_is_critical_frame_period(struct hw_endpoint *ep)
 {
 	TU_VERIFY(e15_is_bulkin_ep(ep));
 
@@ -145,7 +145,7 @@ static void _hw_endpoint_alloc(struct hw_endpoint *ep, uint8_t transfer_type)
 	*ep->endpoint_control = reg;
 }
 
-static struct hw_endpoint *hw_endpoint_get_by_addr(uint8_t ep_addr)
+static struct hw_endpoint FASE_IRQ *hw_endpoint_get_by_addr(uint8_t ep_addr)
 {
 	uint8_t num = tu_edpt_number(ep_addr);
 	tusb_dir_t dir = tu_edpt_dir(ep_addr);
@@ -279,7 +279,7 @@ void dcd_int_disable(__unused uint8_t rhport)
 	irq_set_enabled(USBCTRL_IRQ, false);
 }
 
-void _hw_endpoint_buffer_control_update32(struct hw_endpoint *ep,
+void FASE_IRQ _hw_endpoint_buffer_control_update32(struct hw_endpoint *ep,
 					  uint32_t and_mask, uint32_t or_mask)
 {
 	uint32_t value = 0;
@@ -316,7 +316,7 @@ void _hw_endpoint_buffer_control_update32(struct hw_endpoint *ep,
 }
 
 // sync endpoint buffer and return transferred bytes
-static uint16_t sync_ep_buffer(struct hw_endpoint *ep, uint8_t buf_id)
+static uint16_t FASE_IRQ sync_ep_buffer(struct hw_endpoint *ep, uint8_t buf_id)
 {
 	uint32_t buf_ctrl = _hw_endpoint_buffer_control_get_value32(ep);
 	if (buf_id)
@@ -353,7 +353,7 @@ static uint16_t sync_ep_buffer(struct hw_endpoint *ep, uint8_t buf_id)
 }
 
 // prepare buffer, return buffer control
-static uint32_t prepare_ep_buffer(struct hw_endpoint *ep, uint8_t buf_id)
+static uint32_t FASE_IRQ prepare_ep_buffer(struct hw_endpoint *ep, uint8_t buf_id)
 {
 	uint16_t const buflen = tu_min16(ep->remaining_len, ep->wMaxPacketSize);
 	ep->remaining_len = (uint16_t) (ep->remaining_len - buflen);
@@ -387,7 +387,7 @@ static uint32_t prepare_ep_buffer(struct hw_endpoint *ep, uint8_t buf_id)
 }
 
 // Prepare buffer control register value
-void hw_endpoint_start_next_buffer(struct hw_endpoint *ep)
+void FASE_IRQ hw_endpoint_start_next_buffer(struct hw_endpoint *ep)
 {
 	uint32_t ep_ctrl = *ep->endpoint_control;
 
@@ -432,7 +432,7 @@ void hw_endpoint_start_next_buffer(struct hw_endpoint *ep)
 	_hw_endpoint_buffer_control_set_value32(ep, buf_ctrl);
 }
 
-static void _hw_endpoint_xfer_sync(struct hw_endpoint *ep)
+static void FASE_IRQ _hw_endpoint_xfer_sync(struct hw_endpoint *ep)
 {
 	// Update hw endpoint struct with info from hardware
 	// after a buff status interrupt
@@ -487,7 +487,7 @@ static void _hw_endpoint_xfer_sync(struct hw_endpoint *ep)
 }
 
 // Returns true if transfer is complete
-bool hw_endpoint_xfer_continue(struct hw_endpoint *ep)
+bool FASE_IRQ hw_endpoint_xfer_continue(struct hw_endpoint *ep)
 {
 	hw_endpoint_lock_update(ep, 1);
 
@@ -522,7 +522,7 @@ bool hw_endpoint_xfer_continue(struct hw_endpoint *ep)
 	return false;
 }
 
-void hw_endpoint_xfer_start(struct hw_endpoint *ep, uint8_t * buffer,
+void FASE_IRQ hw_endpoint_xfer_start(struct hw_endpoint *ep, uint8_t * buffer,
 			    uint16_t total_len)
 {
 	hw_endpoint_lock_update(ep, 1);
@@ -568,7 +568,7 @@ static void hw_endpoint_xfer(uint8_t ep_addr, uint8_t * buffer,
 	hw_endpoint_xfer_start(ep, buffer, total_bytes);
 }
 
-static void hw_handle_buff_status(void)
+static void FASE_IRQ hw_handle_buff_status(void)
 {
 	uint32_t remaining_buffers = usb_hw->buf_status;
 	pico_trace_irq("buf_status = 0x%x\n", remaining_buffers);
@@ -620,7 +620,7 @@ static void hw_handle_buff_status(void)
 	}
 }
 
-void hw_endpoint_reset_transfer(struct hw_endpoint *ep)
+void FASE_IRQ hw_endpoint_reset_transfer(struct hw_endpoint *ep)
 {
 	ep->active = false;
 	ep->remaining_len = 0;
@@ -654,7 +654,7 @@ TU_ATTR_ALWAYS_INLINE static inline void reset_ep0_pid(void)
 	}
 }
 
-static void dcd_rp2040_irq(void)
+static void FASE_IRQ dcd_rp2040_irq(void)
 {
 	uint32_t const status = usb_hw->ints;
 	uint32_t handled = 0;
