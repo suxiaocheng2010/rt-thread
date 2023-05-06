@@ -130,7 +130,7 @@ static void _hw_endpoint_alloc(struct hw_endpoint *ep, uint8_t transfer_type)
 	ep->hw_data_buf = next_buffer_ptr;
 	next_buffer_ptr += size;
 
-	assert(((uintptr_t) next_buffer_ptr & 0 b111111u) == 0);
+	assert(((uintptr_t) next_buffer_ptr & 0b111111u) == 0);
 	uint dpram_offset = hw_data_offset(ep->hw_data_buf);
 	hard_assert(hw_data_offset(next_buffer_ptr) <= USB_DPRAM_MAX);
 
