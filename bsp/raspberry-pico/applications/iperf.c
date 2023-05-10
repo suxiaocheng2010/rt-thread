@@ -50,6 +50,7 @@ void iperf_server(void *thread_param)
 				if (err == ERR_OK) {
 					do {
 						netbuf_data(buf, &data, &len);
+#if 0
 						err =
 						    netconn_write(newconn, data,
 								  len,
@@ -57,6 +58,7 @@ void iperf_server(void *thread_param)
 						if (err != ERR_OK) {
 							break;
 						}
+#endif
 					}
 					while (netbuf_next(buf) >= 0);
 					netbuf_delete(buf);
