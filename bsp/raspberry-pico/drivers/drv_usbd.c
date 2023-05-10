@@ -9,6 +9,7 @@
  */
 
 #include <rtthread.h>
+#include <rthw.h>
 
 #include <rtdevice.h>
 #include <string.h>
@@ -525,6 +526,9 @@ bool FASE_IRQ hw_endpoint_xfer_continue(struct hw_endpoint *ep)
 void FASE_IRQ hw_endpoint_xfer_start(struct hw_endpoint *ep, uint8_t * buffer,
 			    uint16_t total_len)
 {
+	rt_base_t level;
+
+	level = rt_hw_interrupt_disable();
 	hw_endpoint_lock_update(ep, 1);
 
 	if (ep->active) {
@@ -533,7 +537,9 @@ void FASE_IRQ hw_endpoint_xfer_start(struct hw_endpoint *ep, uint8_t * buffer,
 		       "WARN: starting new transfer on already active ep %d %s\n",
 		       tu_edpt_number(ep->ep_addr),
 		       ep_dir_string[tu_edpt_dir(ep->ep_addr)]);
+		rt_kprintf("err %s ep %d %s %d\n", __func__, tu_edpt_number(ep->ep_addr), ep_dir_string[tu_edpt_dir(ep->ep_addr)], total_len);
 		hw_endpoint_lock_update(ep, -1);
+		rt_hw_interrupt_enable(level);
 		return;
 
 		hw_endpoint_reset_transfer(ep);
@@ -558,6 +564,7 @@ void FASE_IRQ hw_endpoint_xfer_start(struct hw_endpoint *ep, uint8_t * buffer,
 	}
 
 	hw_endpoint_lock_update(ep, -1);
+	rt_hw_interrupt_enable(level);
 }
 
 static void hw_endpoint_xfer(uint8_t ep_addr, uint8_t * buffer,
@@ -585,32 +592,22 @@ static void FASE_IRQ hw_handle_buff_status(void)
 			// Continue xfer
 			bool done = hw_endpoint_xfer_continue(ep);
 			if (done) {
+				int xferred_len = ep->xferred_len;
+				int ep_addr = ep->ep_addr;
+				hw_endpoint_reset_transfer(ep);
 				// Notify
 				// dcd_event_xfer_complete(0, ep->ep_addr, ep->xferred_len, XFER_RESULT_SUCCESS, true);
-				if (tu_edpt_dir(ep->ep_addr) == TUSB_DIR_IN) {
-					if (tu_edpt_number(ep->ep_addr) == 0) {
-						hw_endpoint_reset_transfer(ep);
-						rt_usbd_ep0_in_handler
-						    (&pico_udc);
+				if (tu_edpt_dir(ep_addr) == TUSB_DIR_IN) {
+					if (tu_edpt_number(ep_addr) == 0) {
+						rt_usbd_ep0_in_handler(&pico_udc);
 					} else {
-						rt_usbd_ep_in_handler(&pico_udc,
-								      ep->
-								      ep_addr,
-								      ep->
-								      xferred_len);
-						hw_endpoint_reset_transfer(ep);
+						rt_usbd_ep_in_handler(&pico_udc, ep_addr, xferred_len);
 					}
 				} else {
-					if (tu_edpt_number(ep->ep_addr) == 0) {
-						rt_usbd_ep0_out_handler
-						    (&pico_udc,
-						     ep->xferred_len);
-						hw_endpoint_reset_transfer(ep);
+					if (tu_edpt_number(ep_addr) == 0) {
+						rt_usbd_ep0_out_handler(&pico_udc, xferred_len);
 					} else {
-						rt_usbd_ep_out_handler
-						    (&pico_udc, ep->ep_addr,
-						     ep->xferred_len);
-						hw_endpoint_reset_transfer(ep);
+						rt_usbd_ep_out_handler(&pico_udc, ep_addr, xferred_len);
 					}
 				}
 			}
