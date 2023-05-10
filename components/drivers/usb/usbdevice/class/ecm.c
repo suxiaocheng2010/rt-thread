@@ -43,6 +43,7 @@ struct rt_ecm_eth
     rt_align(4)
     rt_size_t               rx_offset;
     rt_align(4)
+    rt_bool_t               rx_progress;
     char                    rx_buffer[USB_ETH_MTU];
     char                    tx_buffer[USB_ETH_MTU];
 
@@ -296,6 +297,7 @@ static rt_err_t _ep_out_handler(ufunction_t func, rt_size_t size)
     {
         ecm_device->rx_size = ecm_device->rx_offset;
         ecm_device->rx_offset = 0;
+	ecm_device->rx_progress = 0;
         eth_device_ready(&ecm_device->parent);
 
     }else
@@ -390,10 +392,11 @@ struct pbuf *rt_ecm_eth_rx(rt_device_t dev)
     }
 
     {
-        if(ecm_eth_dev->func->device->state == USB_STATE_CONFIGURED)
+        if((ecm_eth_dev->func->device->state == USB_STATE_CONFIGURED) && ecm_eth_dev->rx_progress == 0)
         {
             ecm_eth_dev->rx_size = 0;
             ecm_eth_dev->rx_offset = 0;
+	    ecm_eth_dev->rx_progress = 1;
             ecm_eth_dev->eps.ep_out->request.buffer = ecm_eth_dev->eps.ep_out->buffer;
             ecm_eth_dev->eps.ep_out->request.size = EP_MAXPACKET(ecm_eth_dev->eps.ep_out);
             ecm_eth_dev->eps.ep_out->request.req_type = UIO_REQUEST_READ_BEST;
@@ -485,6 +488,7 @@ static rt_err_t _function_enable(ufunction_t func)
     /* reset eth rx tx */
     ecm_device->rx_size = 0;
     ecm_device->rx_offset = 0;
+    ecm_device->rx_progress = 0;
 
     eps->ep_out->request.buffer = (void *)eps->ep_out->buffer;
     eps->ep_out->request.size = EP_MAXPACKET(eps->ep_out);
