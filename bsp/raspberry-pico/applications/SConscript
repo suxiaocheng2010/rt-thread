@@ -5,6 +5,9 @@ cwd = GetCurrentDir()
 src = ['main.c']
 CPPPATH = [cwd]
 
+if GetDepend('RT_USING_FINSH'):
+    src += ['benchmark.c']
+
 group = DefineGroup('Applications', src, depend = [''], CPPPATH = CPPPATH)
 
 list = os.listdir(cwd)
